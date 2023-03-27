@@ -4,28 +4,40 @@ import 'package:flutter/services.dart';
 import 'src/clock.dart';
 
 class FlutterNaverLogin {
-  static const MethodChannel _channel =
-      const MethodChannel('flutter_naver_login');
+  static const MethodChannel _channel = const MethodChannel('flutter_naver_login');
+
+  static Future<bool?> initSdk({
+    required String clientId,
+    required String clientName,
+    required String clientSecret,
+  }) async {
+    final arguments = {
+      'clientId': clientId,
+      'clientName': clientName,
+      'clientSecret': clientSecret,
+    };
+
+    print('[FlutterNaverLogin] initSdk');
+
+    return await _channel.invokeMethod<bool>("initSdk", arguments);
+  }
 
   static Future<NaverLoginResult> logIn() async {
     final Map<dynamic, dynamic> res = await _channel.invokeMethod('logIn');
 
-    return _delayedToResult(
-        new NaverLoginResult._(res.cast<String, dynamic>()));
+    return _delayedToResult(new NaverLoginResult._(res.cast<String, dynamic>()));
   }
 
   static Future<NaverLoginResult> logOut() async {
     final Map<dynamic, dynamic> res = await _channel.invokeMethod('logOut');
 
-    return _delayedToResult(
-        new NaverLoginResult._(res.cast<String, dynamic>()));
+    return _delayedToResult(new NaverLoginResult._(res.cast<String, dynamic>()));
   }
 
   static Future<NaverLoginResult> logOutAndDeleteToken() async {
     final Map<dynamic, dynamic> res = await _channel.invokeMethod('logoutAndDeleteToken');
 
-    return _delayedToResult(
-        new NaverLoginResult._(res.cast<String, dynamic>()));
+    return _delayedToResult(new NaverLoginResult._(res.cast<String, dynamic>()));
   }
 
   static Future<bool> get isLoggedIn async {
@@ -36,28 +48,23 @@ class FlutterNaverLogin {
   }
 
   static Future<NaverAccountResult> currentAccount() async {
-    final Map<dynamic, dynamic> res =
-        await _channel.invokeMethod('getCurrentAcount');
+    final Map<dynamic, dynamic> res = await _channel.invokeMethod('getCurrentAcount');
 
-    return _delayedToResult(
-        new NaverAccountResult._(res.cast<String, dynamic>()));
+    return _delayedToResult(new NaverAccountResult._(res.cast<String, dynamic>()));
   }
 
   static Future<NaverAccessToken> get currentAccessToken async {
-    final Map<dynamic, dynamic>? accessToken =
-        await _channel.invokeMethod('getCurrentAccessToken');
+    final Map<dynamic, dynamic>? accessToken = await _channel.invokeMethod('getCurrentAccessToken');
 
     if (accessToken == null)
       return NaverAccessToken._(noToken);
     else
-      return _delayedToResult(
-          NaverAccessToken._(accessToken.cast<String, dynamic>()));
+      return _delayedToResult(NaverAccessToken._(accessToken.cast<String, dynamic>()));
   }
 
   static Future<NaverAccessToken> refreshAccessTokenWithRefreshToken() async {
     final accessToken = await currentAccessToken;
-    if (accessToken.refreshToken.isNotEmpty ||
-        accessToken.refreshToken != 'no token') {
+    if (accessToken.refreshToken.isNotEmpty && accessToken.refreshToken != 'no token') {
       await _channel.invokeMethod('refreshAccessTokenWithRefreshToken');
     }
     return (await currentAccessToken);
@@ -95,8 +102,7 @@ class NaverLoginResult {
   }
 
   @override
-  String toString() =>
-      '{ status: $status, account: $account, errorMessage: $errorMessage, accessToken: $accessToken }';
+  String toString() => '{ status: $status, account: $account, errorMessage: $errorMessage, accessToken: $accessToken }';
 }
 
 class NaverAccessToken {
@@ -104,9 +110,10 @@ class NaverAccessToken {
   final String refreshToken;
   final String expiresAt;
   final String tokenType;
+
   bool isValid() {
     if (expiresAt.isEmpty || expiresAt == 'no token') return false;
-    bool timeValid = Clock.now().isBefore(DateTime.parse(expiresAt));
+    bool timeValid = Clock.now().isBefore(DateTime.fromMillisecondsSinceEpoch(int.parse(expiresAt) * 1000));
     bool tokenExist = accessToken.isNotEmpty && accessToken != 'no token';
     return timeValid && tokenExist;
   }
